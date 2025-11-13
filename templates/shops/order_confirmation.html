@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container my-5">
+    <div class="text-center mb-4">
+        <h2 class="text-success">✅ Thank You, {{ user.username }}!</h2>
+        <p>Your order has been placed successfully.</p>
+        <h5>Total Paid: ₹{{ total_amount }}</h5>
+    </div>
+
+    <div class="card shadow-sm p-3 mb-4">
+        <h4 class="mb-3">Order Summary</h4>
+        <table class="table table-bordered align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                    <th>Invoice</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>{{ order.item.name }}</td>
+                    <td>{{ order.quantity }}</td>
+                    <td>₹{{ order.item.price }}</td>
+                    <td>₹{{ order.total_price }}</td>
+                    <td>
+                        <a href="{% url 'shops:download_invoice' order.id %}" class="btn btn-sm btn-primary">
+                            Download
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="text-center">
+        <a href="{% url 'shops:user_dashboard' %}" class="btn btn-lg btn-success">Continue Shopping</a>
+    </div>
+</div>
+{% endblock %}

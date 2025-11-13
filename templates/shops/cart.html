@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container my-5">
+    <h2 class="mb-4">🛒 Your Cart</h2>
+
+    {% if cart_items %}
+    <div class="card shadow-sm p-4">
+        <table class="table align-middle" id="cart_table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Price</th>
+                    <th>Qty</th>
+                    <th>Subtotal</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in cart_items %}
+                <tr id="order_row_{{ order.id }}">
+                    <td>
+                        <div class="d-flex align-items-center">
+                            {% if order.item.image %}
+                            <img src="{{ order.item.image.url }}" alt="{{ order.item.name }}" class="me-2" width="50">
+                            {% endif %}
+                            <span>{{ order.item.name }}</span>
+                        </div>
+                    </td>
+                    <td class="item_price">{{ order.item.price }}</td>
+                    <td>
+                        <input type="number" min="1" class="form-control quantity_input" data-id="{{ order.id }}" value="{{ order.quantity }}">
+                    </td>
+                    <td class="subtotal">{{ order.total_price }}</td>
+                    <td>
+                        <button type="button" class="btn btn-danger btn-sm remove_order" data-id="{{ order.id }}">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <h4 class="text-end">Total: ₹<span id="total_amount">{{ total_amount }}</span></h4>
+        <div class="d-flex justify-content-between mt-3">
+            <a href="{% url 'shops:user_dashboard' %}" class="btn btn-outline-primary">
+                ← Continue Shopping
+            </a>
+            <a href="{% url 'shops:checkout' %}" class="btn btn-success">
+                Proceed to Checkout →
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center">
+        🛍️ Your cart is empty. <a href="{% url 'shops:user_dashboard' %}">Start shopping</a>.
+    </div>
+    {% endif %}
+</div>
+
+<!-- JS for live updates -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = '{{ csrf_token }}';
+
+    function updateTotal() {
+        let total = 0;
+        document.querySelectorAll('#cart_table tbody tr').forEach(row => {
+            const subtotal = parseFloat(row.querySelector('.subtotal').innerText) || 0;
+            total += subtotal;
+        });
+        document.getElementById('total_amount').innerText = total.toFixed(2);
+    }
+
+    // Quantity update
+    document.querySelectorAll('.quantity_input').forEach(input => {
+        input.addEventListener('input', function() {
+            const orderId = this.dataset.id;
+            let qty = parseInt(this.value) || 1;
+            if(qty < 1) qty = 1;
+            const row = document.getElementById(`order_row_${orderId}`);
+            const price = parseFloat(row.querySelector('.item_price').innerText);
+
+            row.querySelector('.subtotal').innerText = (price * qty).toFixed(2);
+            updateTotal();
+
+            if(this.updateTimeout) clearTimeout(this.updateTimeout);
+            this.updateTimeout = setTimeout(() => {
+                fetch("{% url 'shops:cart' %}", {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    body: `action=update_quantity&order_id=${orderId}&quantity=${qty}`
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if(!data.success) alert(data.error);
+                    updateTotal();
+                });
+            }, 500);
+        });
+    });
+
+    // Remove item
+    document.querySelectorAll('.remove_order').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const orderId = this.dataset.id;
+            if(!confirm("Remove this item from cart?")) return;
+
+            fetch("{% url 'shops:cart' %}", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: `action=remove_order&order_id=${orderId}`
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById(`order_row_${orderId}`).remove();
+                    updateTotal();
+                } else {
+                    alert(data.error);
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

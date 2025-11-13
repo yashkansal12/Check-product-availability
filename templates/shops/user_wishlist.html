@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}My Wishlist{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+.card-custom {
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+#wishlistSearch { margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <div class="card card-custom p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>My Wishlist</h2>
+            <input type="text" id="wishlistSearch" class="form-control w-25" placeholder="Search wishlist..." onkeyup="filterWishlist()">
+        </div>
+
+        {% if items %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="wishlistTable">
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Added On</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ item.item_name }}</td>
+                        <td>{{ item.created_at|date:"d M Y" }}</td>
+                        <td>
+                            <form action="{% url 'shops:remove_wishlist_item' item.id %}" method="POST" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mt-3">Your wishlist is empty.</p>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterWishlist() {
+    let input = document.getElementById('wishlistSearch').value.toLowerCase();
+    let rows = document.querySelectorAll('#wishlistTable tbody tr');
+    rows.forEach(row => {
+        let name = row.cells[0].innerText.toLowerCase();
+        row.style.display = name.includes(input) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

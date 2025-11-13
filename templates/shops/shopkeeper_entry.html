@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome  - shopkeeper page {% endblock %}
+
+{% block content %}
+<section class="d-flex flex-column justify-content-center align-items-center vh-100 bg-light">
+    <div class="text-center p-5 shadow rounded bg-white" style="max-width: 450px; width: 100%;">
+        <h1 class="mb-4 fw-bold text-success">Welcome Shopkeeper!</h1>
+        <p class="mb-4">Login or register to manage your products and requests.</p>
+        <div class="d-grid gap-3">
+            <a href="{% url 'shops:shopkeeper_login' %}" class="btn btn-primary btn-lg">Login</a>
+            <a href="{% url 'shops:shopkeeper_register' %}" class="btn btn-success btn-lg">Register</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

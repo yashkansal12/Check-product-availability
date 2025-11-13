@@ -1,0 +1,381 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}User Dashboard{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+/* Sidebar */
+.section { display: none; }
+.active-link { background-color: rgba(255,255,255,0.25); }
+aside { background-color: #28a745 !important; }
+aside .nav-link { color: white; font-weight: 500; transition: background 0.3s; }
+aside .nav-link:hover { background-color: rgba(255,255,255,0.2); border-radius: 8px; }
+aside .bg-danger { background-color: #dc3545 !important; }
+
+/* Profile Card */
+.profile-card { padding: 20px; border-radius: 12px; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 20px; }
+
+/* Cards */
+.card { border: none; border-radius: 12px; transition: transform 0.2s, box-shadow 0.2s; }
+.card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+
+/* Buttons */
+.btn-sm { font-size: 0.85rem; }
+.btn-success { background-color: #198754; border-color: #198754; }
+.btn-success:hover { background-color: #157347; border-color: #146c43; }
+.btn-warning { background-color: #ffc107; border-color: #ffc107; color: #212529; }
+.btn-warning:hover { background-color: #e0a800; border-color: #d39e00; }
+
+/* Table */
+.table-hover tbody tr:hover { background-color: #f1fdf5; }
+
+/* Input fields */
+.form-control-sm { height: calc(1.5em + .5rem + 2px); }
+li.list-group-item input[type="number"] { width: 60px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex vh-100">
+
+    <!-- Sidebar -->
+    <aside class="d-flex flex-column text-white p-3" style="width: 250px;">
+        <div class="text-center mb-4">
+            <div class="rounded-circle bg-white text-success d-flex align-items-center justify-content-center mx-auto mb-2" style="width:60px; height:60px; font-size:24px;">
+                {{ user.username|slice:":1"|upper }}
+            </div>
+            <h5 class="mb-0">{{ user.username }}</h5>
+            <small>Welcome back!</small>
+        </div>
+
+        <ul class="nav flex-column mt-4">
+            <li class="nav-item mb-2">
+                <a class="nav-link active-link" href="#" onclick="showSection('shops')">
+                    <i class="fa fa-tachometer-alt me-2"></i> Shops & Products
+                </a>
+            </li>
+            <li class="nav-item mb-2">
+                <a class="nav-link" href="#" onclick="showSection('requests')">
+                    <i class="fa fa-shopping-cart me-2"></i> My Requests
+                </a>
+            </li>
+            <li class="nav-item mb-2">
+                <a class="nav-link" href="#" onclick="showSection('orders')">
+                    <i class="fa fa-box me-2"></i> My Orders
+                </a>
+            </li>
+            <li class="nav-item mb-2">
+                <a class="nav-link" href="#" onclick="showSection('profile')">
+                    <i class="fa fa-user me-2"></i> Profile
+                </a>
+            </li>
+            <li class="nav-item mt-auto">
+                <a class="nav-link bg-danger bg-opacity-75 rounded" href="{% url 'logout' %}">
+                    <i class="fa fa-sign-out-alt me-2"></i> Logout
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-fill p-4 overflow-auto bg-light">
+
+        <!-- Shops Section -->
+        <div id="shopsSection" class="section" style="display:block;">
+            <h1 class="mb-4">Shops & Products</h1>
+            <div class="row g-4">
+                {% for shop in shops %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-success bg-opacity-10 d-flex align-items-center gap-3 rounded-top-4">
+                            <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center" style="width:50px; height:50px; font-size:20px;">
+                                {{ shop.shop_name|default:shop.user.username|slice:":1"|upper }}
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">{{ shop.shop_name|default:shop.user.username }}</h6>
+                                <small class="text-muted">{{ shop.description|default:"No description available" }}</small>
+                            </div>
+                        </div>
+
+                        <div class="card-body">
+                            <h6 class="card-title text-success">Available Products</h6>
+                            <ul class="list-group list-group-flush">
+                                {% for product in shop.items.all %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                    <div>
+                                        <strong>{{ product.name }}</strong>
+                                        <div class="text-muted small">₹{{ product.price }} | {{ product.quantity }} available</div>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <input type="number" name="quantity" value="1" min="1" max="{{ product.quantity }}" class="form-control form-control-sm">
+                                        <form method="POST" action="{% url 'shops:buy_item' product.item_id %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-success btn-sm rounded-3 shadow-sm">Buy</button>
+                                        </form>
+                                        <form method="POST" action="{% url 'shops:add_to_cart' product.item_id %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-warning btn-sm rounded-3 shadow-sm">Add to Cart</button>
+                                        </form>
+                                    </div>
+                                </li>
+                                {% empty %}
+                                <li class="list-group-item text-muted">No products available.</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <div class="card-footer bg-light rounded-bottom-4">
+                            <form class="send-request-form" data-shop-id="{{ shop.id }}">
+                                {% csrf_token %}
+                                <div class="input-group input-group-sm mb-2">
+                                    <input type="text" name="item_name" class="form-control rounded-start" placeholder="Product Name" required>
+                                    <input type="number" name="quantity" class="form-control" placeholder="Qty" min="1" required>
+                                    <button type="submit" class="btn btn-success rounded-end">Send Request</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-center text-muted col-12">No shops available at the moment.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Requests Section -->
+        <div id="requestsSection" class="section">
+            <h2 class="h4 mb-3 text-success">My Requests</h2>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle" id="requestsTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Shop</th>
+                            <th>Item</th>
+                            <th>Quantity</th>
+                            <th>Status</th>
+                            <th>Requested At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in requests %}
+                        <tr>
+                            <td>{{ req.id }}</td>
+                            <td>{{ req.shop.shop_name|default:req.shop.user.username }}</td>
+                            <td>{{ req.item.name|default:req.item_name }}</td>
+                            <td>{{ req.quantity }}</td>
+                            <td>{{ req.status }}</td>
+                            <td>{{ req.created_at|date:"d M Y H:i" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Orders Section -->
+        <div id="ordersSection" class="section">
+            <h2 class="h4 mb-3 text-success">My Orders</h2>
+            {% if orders %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Shop</th>
+                            <th>Item</th>
+                            <th>Quantity</th>
+                            <th>Status</th>
+                            <th>Ordered At</th>
+                            <th>Invoice</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td>{{ order.id }}</td>
+                            <td>{{ order.item.shop.shop_name|default:order.item.shop.user.username }}</td>
+                            <td>{{ order.item.name }}</td>
+                            <td>{{ order.quantity }}</td>
+                            <td>{{ order.status }}</td>
+                            <td>{{ order.created_at|date:"d M Y H:i" }}</td>
+                            <td>
+                                <a href="{% url 'shops:download_invoice' order.id %}" class="btn btn-sm btn-outline-success">
+                                    <i class="fa fa-file-pdf"></i> Download
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">You have not placed any orders yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- Profile Section -->
+        <div id="profileSection" class="section">
+            <h2 class="h4 mb-4 text-success">Profile & Account Settings</h2>
+
+            <div class="profile-card shadow-sm rounded-4">
+                <h5 class="mb-3">Account Details</h5>
+
+                <!-- Username -->
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <div><strong>Name:</strong> <span id="displayUsername">{{ user.username }}</span></div>
+                    <button class="btn btn-sm btn-outline-success edit-btn" onclick="editField('username')"><i class="fa fa-edit"></i> Edit</button>
+                </div>
+                <div class="d-flex gap-2 mb-2" style="display:none;" id="usernameEdit">
+                    <input type="text" id="usernameInput" value="{{ user.username }}" class="form-control form-control-sm">
+                    <button id="saveUsername" class="btn btn-success btn-sm"><i class="fa fa-check"></i> Save</button>
+                    <button class="btn btn-secondary btn-sm" onclick="cancelEdit('username')"><i class="fa fa-times"></i> Cancel</button>
+                </div>
+
+                <!-- Email -->
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <div><strong>Email:</strong> <span id="displayEmail">{{ user.email }}</span></div>
+                    <button class="btn btn-sm btn-outline-success edit-btn" onclick="editField('email')"><i class="fa fa-edit"></i> Edit</button>
+                </div>
+                <div class="d-flex gap-2 mb-2" style="display:none;" id="emailEdit">
+                    <input type="email" id="emailInput" value="{{ user.email }}" class="form-control form-control-sm">
+                    <button id="saveEmail" class="btn btn-success btn-sm"><i class="fa fa-check"></i> Save</button>
+                    <button class="btn btn-secondary btn-sm" onclick="cancelEdit('email')"><i class="fa fa-times"></i> Cancel</button>
+                </div>
+
+                <!-- Mobile -->
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <div><strong>Mobile:</strong> <span id="displayMobile">{{ user.profile.phone }}</span></div>
+                    <button class="btn btn-sm btn-outline-success edit-btn" onclick="editField('mobile')"><i class="fa fa-edit"></i> Edit</button>
+                </div>
+                <div class="d-flex gap-2 mb-2" style="display:none;" id="mobileEdit">
+                    <input type="text" id="mobileInput" value="{{ user.profile.phone }}" class="form-control form-control-sm">
+                    <button id="saveMobile" class="btn btn-success btn-sm"><i class="fa fa-check"></i> Save</button>
+                    <button class="btn btn-secondary btn-sm" onclick="cancelEdit('mobile')"><i class="fa fa-times"></i> Cancel</button>
+                </div>
+
+                <!-- Password -->
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <div><strong>Password:</strong> <span>********</span></div>
+                    <button class="btn btn-sm btn-outline-success edit-btn" onclick="editField('password')"><i class="fa fa-edit"></i> Change</button>
+                </div>
+                <div class="d-flex gap-2 mb-2" style="display:none;" id="passwordEdit">
+                    <input type="password" id="passwordInput" placeholder="New Password" class="form-control form-control-sm">
+                    <button id="savePassword" class="btn btn-success btn-sm"><i class="fa fa-check"></i> Save</button>
+                    <button class="btn btn-secondary btn-sm" onclick="cancelEdit('password')"><i class="fa fa-times"></i> Cancel</button>
+                </div>
+
+                <!-- Address -->
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <div><strong>Address:</strong> <span id="displayAddress">{{ user.profile.address }}</span></div>
+                    <button class="btn btn-sm btn-outline-success edit-btn" onclick="editField('address')"><i class="fa fa-edit"></i> Edit</button>
+                </div>
+                <div class="d-flex flex-column gap-2 mb-2" style="display:none;" id="addressEdit">
+                    <textarea id="addressInput" class="form-control form-control-sm">{{ user.profile.address }}</textarea>
+                    <div class="d-flex gap-2">
+                        <button id="saveAddress" class="btn btn-success btn-sm"><i class="fa fa-check"></i> Save</button>
+                        <button class="btn btn-secondary btn-sm" onclick="cancelEdit('address')"><i class="fa fa-times"></i> Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-card shadow-sm rounded-4 mt-4">
+                <h5>Personalization</h5>
+                <p>Manage your wishlist, recommendations, privacy, and account data.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'shops:user_wishlist' %}" class="btn btn-outline-success btn-sm"><i class="fa fa-heart"></i> Wishlist</a>
+                    <a href="{% url 'shops:recommendation' %}" class="btn btn-outline-success btn-sm"><i class="fa fa-star"></i> Recommendations</a>
+                    <a href="{% url 'shops:close_account' %}" class="btn btn-danger btn-sm"><i class="fa fa-trash"></i> Close Account</a>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+// Sidebar navigation
+let newRequests = []; // store new requests in session
+
+function showSection(section) {
+    ['shops','requests','orders','profile'].forEach(s => document.getElementById(s+'Section').style.display = 'none');
+    document.getElementById(section+'Section').style.display = 'block';
+    document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active-link'));
+    document.querySelector(`[onclick="showSection('${section}')"]`).classList.add('active-link');
+
+    // Append new requests immediately when user clicks My Requests
+    if(section === 'requests' && newRequests.length > 0) {
+        const table = document.getElementById('requestsTable').querySelector('tbody');
+        newRequests.forEach(data => {
+            table.insertAdjacentHTML('beforeend',
+                `<tr>
+                    <td>${data.id}</td>
+                    <td>${data.shop}</td>
+                    <td>${data.item_name}</td>
+                    <td>${data.quantity}</td>
+                    <td>${data.status}</td>
+                    <td>${data.created_at}</td>
+                </tr>`
+            );
+        });
+        newRequests = []; // clear after showing
+    }
+}
+
+// Profile edit
+function editField(field){ document.getElementById(field+'Edit').style.display='flex'; }
+function cancelEdit(field){ document.getElementById(field+'Edit').style.display='none'; }
+function capitalize(str){ return str.charAt(0).toUpperCase()+str.slice(1); }
+function saveField(field){
+    const value = document.getElementById(field+'Input').value;
+    fetch("{% url 'shops:update_profile' %}",{
+        method:"POST",
+        headers:{"X-CSRFToken":"{{ csrf_token }}","Content-Type":"application/x-www-form-urlencoded"},
+        body:`field=${field}&value=${encodeURIComponent(value)}`
+    })
+    .then(res=>res.json())
+    .then(data=>{
+        if(data.success && field!=='password') document.getElementById('display'+capitalize(field)).innerText=data.value;
+        if(!data.success) alert('Error: '+data.error);
+        cancelEdit(field);
+    })
+    .catch(()=>alert('Error updating '+field));
+}
+["Username","Email","Mobile","Password","Address"].forEach(f=>document.getElementById('save'+f).onclick=()=>saveField(f.toLowerCase()));
+
+// AJAX send request
+document.querySelectorAll('.send-request-form').forEach(form=>{
+    form.addEventListener('submit', e=>{
+        e.preventDefault();
+        const shopId = form.dataset.shopId;
+        const itemName = form.querySelector('input[name="item_name"]').value;
+        const quantity = form.querySelector('input[name="quantity"]').value;
+        const csrf = form.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
+        fetch(`/send/request/${shopId}/`,{
+            method:'POST',
+            headers:{"X-CSRFToken":csrf,"Content-Type":"application/x-www-form-urlencoded"},
+            body:`item_name=${encodeURIComponent(itemName)}&quantity=${encodeURIComponent(quantity)}`
+        })
+        .then(r=>r.json())
+        .then(data=>{
+            if(data.success){
+                // store request to show immediately in requests section
+                newRequests.push({
+                    id: data.request.id,
+                    shop: data.request.shop,
+                    item_name: data.request.item_name,
+                    quantity: data.request.quantity,
+                    status: data.request.status,
+                    created_at: data.request.created_at
+                });
+                form.reset(); // full reset
+            } else alert('Error: '+data.error);
+        });
+    });
+});
+</script>
+{% endblock %}

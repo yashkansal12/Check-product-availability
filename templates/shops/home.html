@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome - ProductCheck{% endblock %}
+
+{% block content %}
+<section class="bg-light py-5 text-center">
+    <div class="container">
+        <h1 class="display-4 fw-bold mb-3">Welcome to ProductCheck</h1>
+        <p class="lead mb-4">Check product availability and connect with nearby shops instantly.</p>
+        <div class="d-flex justify-content-center gap-3 flex-column flex-md-row">
+            <!-- Placeholder links for User and Shopkeeper entry -->
+            <a href="{% url 'shops:user_entry' %}" class="btn btn-primary btn-lg px-5 py-3 shadow">I am a User</a>
+            <a href="{% url 'shops:shopkeeper_entry' %}" class="btn btn-success btn-lg px-5 py-3 shadow">I am a Shopkeeper</a>
+        </div>
+    </div>
+</section>
+
+<section class="py-5">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-md-4 text-center">
+                <div class="p-4 shadow rounded bg-white h-100">
+                    <i class="bi bi-search display-4 mb-3 text-primary"></i>
+                    <h4>Find Products Easily</h4>
+                    <p>Search for any product in nearby shops and save your time.</p>
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="p-4 shadow rounded bg-white h-100">
+                    <i class="bi bi-chat-dots display-4 mb-3 text-success"></i>
+                    <h4>Send Requests</h4>
+                    <p>Notify shopkeepers about the products you need directly.</p>
+                </div>
+            </div>
+            <div class="col-md-4 text-center">
+                <div class="p-4 shadow rounded bg-white h-100">
+                    <i class="bi bi-people display-4 mb-3 text-warning"></i>
+                    <h4>Connect & Purchase</h4>
+                    <p>Get confirmation from shops and purchase products hassle-free.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="bg-light py-5">
+    <div class="container text-center">
+        <h2 class="mb-4">Why Choose ProductCheck?</h2>
+        <p class="lead mb-3">We help users and shopkeepers communicate seamlessly.</p>
+        <p>Fast, secure, and easy to use. Whether you are a customer or a shopkeeper, ProductCheck makes everything simple.</p>
+    </div>
+</section>
+
+<section class="py-5 text-center">
+    <div class="container">
+        <h3 class="mb-4">Get Started Today!</h3>
+    </div>
+</section>
+{% endblock %}

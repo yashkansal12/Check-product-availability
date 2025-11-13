@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+
+<!-- Back Button Navbar -->
+<nav class="navbar navbar-light bg-light mb-4 shadow-sm">
+    <div class="container-fluid">
+        <a href="{% url 'shops:user_dashboard' %}" class="btn btn-outline-primary">
+            <i class="fa fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</nav>
+
+<div class="container my-5">
+    <h2 class="mb-4">Checkout</h2>
+    <div class="row g-4">
+        <!-- Shipping Info -->
+        <div class="col-md-5">
+            <div class="card shadow-sm p-4">
+                <h5 class="mb-3">Shipping Information</h5>
+                <form method="POST" id="checkout_form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" value="{{ user.username }}" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" value="{{ user.email }}" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <textarea class="form-control" name="address" rows="3">{{ profile.address }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Payment Method</label>
+                        <select name="payment_method" class="form-select">
+                            <option value="COD">Cash on Delivery</option>
+                            <option value="Card">Card</option>
+                            <option value="UPI">UPI</option>
+                            <option value="NetBanking">Net Banking</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="col-md-7">
+            <div class="card shadow-sm p-4">
+                <h5 class="mb-3">Order Summary</h5>
+                <table class="table align-middle" id="order_table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Price</th>
+                            <th>Qty</th>
+                            <th>Subtotal</th>
+                            <th>Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr id="order_row_{{ order.id }}">
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if order.item.image %}
+                                    <img src="{{ order.item.image.url }}" alt="{{ order.item.name }}" class="me-2" width="50">
+                                    {% endif %}
+                                    <span>{{ order.item.name }}</span>
+                                </div>
+                            </td>
+                            <td class="item_price">{{ order.item.price }}</td>
+                            <td>
+                                <input type="number" min="1" class="form-control quantity_input" data-id="{{ order.id }}" value="{{ order.quantity }}">
+                            </td>
+                            <td class="subtotal">{{ order.total_price }}</td>
+                            <td>
+                                <button type="button" class="btn btn-danger btn-sm remove_order" data-id="{{ order.id }}">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center">Your cart is empty</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <h5 class="text-end">Total: ₹<span id="total_amount">{{ total_amount }}</span></h5>
+                <button type="submit" form="checkout_form" class="btn btn-success w-100 mt-3">Place Order</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JS for AJAX quantity update and remove -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    function updateTotal() {
+        let total = 0;
+        document.querySelectorAll('#order_table tbody tr').forEach(row => {
+            const subtotal = parseFloat(row.querySelector('.subtotal')?.innerText.replace(/,/g,'') || 0);
+            total += subtotal;
+        });
+        document.getElementById('total_amount').innerText = total.toFixed(2);
+    }
+
+    // Quantity update
+    document.querySelectorAll('.quantity_input').forEach(input => {
+        input.addEventListener('input', function() {
+            const orderId = this.dataset.id;
+            let qty = parseInt(this.value) || 1;
+            if(qty < 1) qty = 1;
+            this.value = qty;
+
+            const row = document.getElementById(`order_row_${orderId}`);
+            const price = parseFloat(row.querySelector('.item_price').innerText.replace(/,/g,'')) || 0;
+
+            row.querySelector('.subtotal').innerText = (price * qty).toFixed(2);
+            updateTotal();
+
+            if(this.updateTimeout) clearTimeout(this.updateTimeout);
+            this.updateTimeout = setTimeout(() => {
+                fetch("{% url 'shops:checkout' %}", {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    body: `action=update_quantity&order_id=${orderId}&quantity=${qty}`
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if(!data.success) alert(data.error || "Failed to update");
+                    updateTotal();
+                });
+            }, 500);
+        });
+    });
+
+    // Remove order
+    document.querySelectorAll('.remove_order').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const orderId = this.dataset.id;
+            if(!confirm("Are you sure to remove this item?")) return;
+
+            fetch("{% url 'shops:checkout' %}", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: `action=remove_order&order_id=${orderId}`
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById(`order_row_${orderId}`).remove();
+                    updateTotal();
+                } else {
+                    alert(data.error || "Failed to remove item");
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

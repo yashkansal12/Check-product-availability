@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Shopkeeper Dashboard{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+
+<style>
+/* --- General --- */
+body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
+.d-none { display: none; }
+
+/* --- Sidebar --- */
+.sidebar {
+    height: 100vh;
+    background: #198754;
+    color: white;
+    padding: 20px 15px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 220px;
+    display: flex;
+    flex-direction: column;
+}
+.sidebar h3 { font-size: 1.5rem; margin-bottom: 30px; font-weight: bold; }
+.sidebar a {
+    display: flex; align-items: center;
+    color: white; text-decoration: none;
+    margin: 12px 0; padding: 10px 12px;
+    border-radius: 8px; transition: 0.3s;
+}
+.sidebar a i { margin-right: 10px; }
+.sidebar a:hover { background: rgba(255,255,255,0.2); }
+
+/* --- Top-left shop name --- */
+.shop-name-top-left {
+    position: fixed;
+    top: 15px; left: 240px;
+    font-size: 1.7rem; font-weight: bold;
+    color: #198754;
+    background: #e6f4ea;
+    padding: 8px 16px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 1000;
+}
+
+/* --- Main content --- */
+.main { margin-left: 240px; padding: 30px; min-height: 80vh; }
+
+/* --- Cards --- */
+.card-custom {
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    background: #fff;
+    margin-bottom: 25px;
+    transition: transform 0.2s;
+}
+.card-custom:hover { transform: translateY(-3px); }
+
+/* --- Tables --- */
+.table thead { background-color: #198754; color: white; }
+.table-hover tbody tr:hover { background-color: #e2f0d9; }
+.btn-sm { padding: 4px 12px; font-size: 0.85rem; }
+
+/* --- Buttons --- */
+.btn-success { background-color: #198754; border: none; }
+.btn-success:hover { background-color: #146c43; }
+.btn-reply { background-color: #0d6efd; color: white; }
+.btn-reply:hover { background-color: #084298; }
+
+/* --- Search input --- */
+#productSearch { margin-bottom: 15px; }
+
+/* --- Status badges --- */
+.status-badge { padding: 3px 8px; border-radius: 5px; color: white; }
+.status-pending { background: #ffc107; }
+.status-approved { background: #198754; }
+.status-rejected { background: #dc3545; }
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+    .main { margin-left: 0; padding: 20px; }
+    .shop-name-top-left { left: 20px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sidebar">
+    <h3><i class="fa fa-store"></i> {{ request.user.shop.shop_name }}</h3>
+    <a href="#" onclick="showSection('dashboard')"><i class="fa fa-home"></i> Dashboard</a>
+    <a href="#" onclick="showSection('requests')"><i class="fa fa-envelope"></i> User Requests</a>
+    <a href="#" onclick="showSection('profile')"><i class="fa fa-user"></i> Profile</a>
+    <a href="#" onclick="showSection('transactions')"><i class="fa fa-shopping-cart"></i> Transactions</a>
+    <a href="{% url 'shops:custom_logout' %}"><i class="fa fa-sign-out-alt"></i> Logout</a>
+</div>
+
+<div class="shop-name-top-left">{{ request.user.shop.shop_name }}</div>
+
+<div class="main">
+
+<!-- DASHBOARD SECTION -->
+<div id="dashboard-section">
+
+    <!-- Add Product -->
+    <div class="card card-custom p-4">
+        <h4 class="mb-3"><i class="fa fa-plus-circle"></i> Add New Product</h4>
+        <form method="POST" class="row g-3">
+            {% csrf_token %}
+            <input type="hidden" name="add_product" value="1">
+            <div class="col-md-4"><input type="text" name="name" class="form-control" placeholder="Product Name" required></div>
+            <div class="col-md-2"><input type="number" name="quantity" class="form-control" placeholder="Qty" required></div>
+            <div class="col-md-2"><input type="number" step="0.01" name="price" class="form-control" placeholder="Price ₹" required></div>
+            <div class="col-md-4"><input type="text" name="description" class="form-control" placeholder="Description"></div>
+            <div class="col-12"><button type="submit" class="btn btn-success w-100">➕ Add Product</button></div>
+        </form>
+    </div>
+
+    <!-- Search Products -->
+    <input type="text" id="productSearch" class="form-control" placeholder="Search product by name, description..." onkeyup="filterProducts()">
+
+    <!-- My Products Table -->
+    <div class="card card-custom p-4">
+        <h4 class="mb-3"><i class="fa fa-box"></i> My Products</h4>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="productsTable">
+                <thead>
+                    <tr><th>Name</th><th>Description</th><th>Qty</th><th>Price</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr id="row-{{ item.item_id }}">
+                        <td>
+                            <span id="name-display-{{ item.item_id }}">{{ item.name }}</span>
+                            <input type="text" class="form-control d-none" id="name-input-{{ item.item_id }}" value="{{ item.name }}">
+                        </td>
+                        <td>
+                            <span id="desc-display-{{ item.item_id }}">{{ item.description }}</span>
+                            <input type="text" class="form-control d-none" id="desc-input-{{ item.item_id }}" value="{{ item.description }}">
+                        </td>
+                        <td>
+                            <span id="qty-display-{{ item.item_id }}">{{ item.quantity }}</span>
+                            <input type="number" class="form-control d-none" id="qty-input-{{ item.item_id }}" value="{{ item.quantity }}">
+                        </td>
+                        <td>
+                            <span id="price-display-{{ item.item_id }}">{{ item.price }}</span>
+                            <input type="number" step="0.01" class="form-control d-none" id="price-input-{{ item.item_id }}" value="{{ item.price }}">
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" id="edit-btn-{{ item.item_id }}" onclick="editRow({{ item.item_id }})">Edit</button>
+                            <button class="btn btn-sm btn-outline-success d-none" id="save-btn-{{ item.item_id }}" onclick="saveEdit({{ item.item_id }})">Save</button>
+                            <form action="{% url 'shops:delete_product' item.item_id %}" method="POST" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fa fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted">No products added yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- USER REQUESTS SECTION -->
+<div id="requests-section" class="d-none">
+    <div class="card card-custom p-4 mt-4">
+        <h4 class="mb-3"><i class="fa fa-envelope"></i> User Requests</h4>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Status</th>
+                        <th>Reply</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requests %}
+                    <tr id="req-{{ req.id }}">
+                        <td>{{ req.user.username }}</td>
+                        <td>{{ req.item.name }}</td>
+                        <td>{{ req.quantity }}</td>
+                        <td><span class="status-badge status-{{ req.status|lower }}">{{ req.status }}</span></td>
+                        <td id="reply-{{ req.id }}">{{ req.reply_message }}</td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm mb-1" id="reply-input-{{ req.id }}" placeholder="Write reply...">
+                            <button class="btn btn-sm btn-success" onclick="handleRequest({{ req.id }}, 'approve')">✅ Approve</button>
+                            <button class="btn btn-sm btn-danger" onclick="handleRequest({{ req.id }}, 'reject')">❌ Reject</button>
+                            <button class="btn btn-sm btn-reply" onclick="handleRequest({{ req.id }}, 'reply')">💬 Reply</button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted">No requests yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- PROFILE SECTION -->
+<div id="profile-section" class="d-none">
+    <div class="card card-custom p-4">
+        <h4 class="mb-3"><i class="fa fa-user"></i> Profile</h4>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="update_profile" value="1">
+            <div class="row g-3">
+                <div class="col-md-6"><input type="text" name="username" value="{{ request.user.username }}" class="form-control"></div>
+                <div class="col-md-6"><input type="email" name="email" value="{{ request.user.email }}" class="form-control"></div>
+                <div class="col-md-6"><input type="text" name="shop_name" value="{{ request.user.shop.shop_name }}" class="form-control"></div>
+                <div class="col-md-6"><input type="text" name="phone" value="{{ request.user.profile.phone }}" class="form-control"></div>
+                <div class="col-12"><input type="text" name="address" value="{{ request.user.profile.address }}" class="form-control"></div>
+            </div>
+            <button type="submit" class="btn btn-success mt-3">💾 Update Profile</button>
+        </form>
+    </div>
+</div>
+
+<!-- TRANSACTIONS SECTION -->
+<div id="transactions-section" class="d-none">
+  <div class="card card-custom p-4">
+    <h4 class="mb-3"><i class="fa fa-shopping-cart"></i> Sold Products</h4>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Buyer</th>
+            <th>Quantity</th>
+            <th>Total Price</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in sold_transactions %}
+          <tr>
+            <td><strong>{{ t.item.name }}</strong></td>
+            <td>{{ t.buyer.username }}</td>
+            <td>{{ t.quantity }}</td>
+            <td>₹{{ t.total_price }}</td>
+            <td>{{ t.date|date:"M d, Y H:i" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="text-center text-muted">No sales yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Sidebar navigation
+function showSection(section){
+    ['dashboard', 'requests', 'profile', 'transactions'].forEach(s => {
+        document.getElementById(s + '-section').classList.add('d-none');
+    });
+    document.getElementById(section + '-section').classList.remove('d-none');
+}
+
+// CSRF helper
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrfToken = getCookie('csrftoken');
+
+// Inline Edit Product
+function editRow(id){
+    document.getElementById(`edit-btn-${id}`).classList.add('d-none');
+    document.getElementById(`save-btn-${id}`).classList.remove('d-none');
+    ['name','desc','qty','price'].forEach(f=>{
+        document.getElementById(`${f}-display-${id}`).classList.add('d-none');
+        document.getElementById(`${f}-input-${id}`).classList.remove('d-none');
+    });
+}
+
+function saveEdit(id){
+    const data = {
+        name: document.getElementById(`name-input-${id}`).value.trim(),
+        description: document.getElementById(`desc-input-${id}`).value.trim(),
+        quantity: parseInt(document.getElementById(`qty-input-${id}`).value),
+        price: parseFloat(document.getElementById(`price-input-${id}`).value)
+    };
+
+    fetch(`/shopkeeper/product/${id}/edit/`, {
+        method: "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrfToken },
+        body: new URLSearchParams(data)
+    })
+    .then(res => res.json())
+    .then(resp => {
+        if(resp.success){
+            document.getElementById(`name-display-${id}`).innerText = resp.name;
+            document.getElementById(`desc-display-${id}`).innerText = resp.description;
+            document.getElementById(`qty-display-${id}`).innerText = resp.quantity;
+            document.getElementById(`price-display-${id}`).innerText = resp.price;
+
+            ['name','desc','qty','price'].forEach(f=>{
+                document.getElementById(`${f}-display-${id}`).classList.remove('d-none');
+                document.getElementById(`${f}-input-${id}`).classList.add('d-none');
+            });
+
+            document.getElementById(`edit-btn-${id}`).classList.remove('d-none');
+            document.getElementById(`save-btn-${id}`).classList.add('d-none');
+        } else alert('Update failed!');
+    })
+    .catch(()=>alert('Error saving product'));
+}
+
+// ✅ Fixed Search products
+function filterProducts(){
+    const val = document.getElementById('productSearch').value.toLowerCase();
+    const rows = document.querySelectorAll('#productsTable tbody tr');
+    rows.forEach(row=>{
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(val) ? '' : 'none';
+    });
+}
+
+// Handle requests approve/reject/reply via AJAX
+function handleRequest(reqId, action){
+    const replyInput = document.getElementById(`reply-input-${reqId}`);
+    const replyMessage = replyInput.value;
+
+    fetch("", {
+        method: "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrfToken },
+        body: new URLSearchParams({ request_id: reqId, action: action, reply_message: replyMessage })
+    })
+    .then(res => res.json())
+    .then(resp => {
+        if(resp.success){
+            document.querySelector(`#req-${reqId} .status-badge`).innerText = resp.status;
+            document.getElementById(`reply-${reqId}`).innerText = resp.reply_message;
+            replyInput.value = "";
+        } else alert("Failed to update request");
+    })
+    .catch(()=>alert("Error updating request"));
+}
+</script>
+{% endblock %}
