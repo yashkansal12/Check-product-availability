@@ -1,0 +1,19 @@
+<h2 class="text-primary mb-3">Search Results for "{{ query }}"</h2>
+
+{% if products.exists %}
+    <div class="row">
+        {% for p in products %}
+            <div class="col-md-4">
+                <div class="card shadow-sm mb-3">
+                    <div class="card-body">
+                        <h5>{{ p.product_name }}</h5>
+                        <p><strong>Shop:</strong> {{ p.shop_name }}</p>
+                        <p><strong>Price:</strong> ₹{{ p.price }}</p>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="text-danger fw-bold mt-3">No results found ❌</p>
+{% endif %}

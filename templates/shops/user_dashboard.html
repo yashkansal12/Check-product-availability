@@ -16,11 +16,24 @@ aside .nav-link:hover { background-color: rgba(255,255,255,0.2); border-radius: 
 aside .bg-danger { background-color: #dc3545 !important; }
 
 /* Profile Card */
-.profile-card { padding: 20px; border-radius: 12px; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 20px; }
+.profile-card {
+    padding: 20px;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
 
 /* Cards */
-.card { border: none; border-radius: 12px; transition: transform 0.2s, box-shadow 0.2s; }
-.card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+.card {
+    border: none;
+    border-radius: 12px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
 
 /* Buttons */
 .btn-sm { font-size: 0.85rem; }
@@ -85,17 +98,45 @@ li.list-group-item input[type="number"] { width: 60px; }
 
         <!-- Shops Section -->
         <div id="shopsSection" class="section" style="display:block;">
-            <h1 class="mb-4">Shops & Products</h1>
+
+            <!-- Header + Search -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="mb-0">Shops & Products</h1>
+                <div class="input-group" style="max-width: 320px;">
+                    <span class="input-group-text">
+                        <i class="fa fa-search"></i>
+                    </span>
+                    <input type="text"
+                           id="shopProductSearch"
+                           class="form-control"
+                           placeholder="Search shop or item...">
+                </div>
+            </div>
+
+            <!-- ⭐ No Results Card (for search) -->
+            <div id="noResultsCard" class="text-center my-5" style="display:none;">
+                <div class="card shadow-sm mx-auto" style="max-width: 360px; border-radius:15px;">
+                    <div class="card-body">
+                        <img src="{% static 'no-results.png' %}" style="width:120px; opacity:0.7;" class="mb-3">
+                        <h5 class="text-danger fw-bold">No Results Found</h5>
+                        <p class="text-muted">Sorry, no matching shop or product found.</p>
+                    </div>
+                </div>
+            </div>
+            <!-- END No Results Card -->
+
             <div class="row g-4">
                 {% for shop in shops %}
-                <div class="col-md-6 col-lg-4">
+                <div class="col-md-6 col-lg-4 shop-card-col">
                     <div class="card h-100 shadow-sm">
                         <div class="card-header bg-success bg-opacity-10 d-flex align-items-center gap-3 rounded-top-4">
                             <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center" style="width:50px; height:50px; font-size:20px;">
                                 {{ shop.shop_name|default:shop.user.username|slice:":1"|upper }}
                             </div>
                             <div>
-                                <h6 class="mb-0 fw-bold">{{ shop.shop_name|default:shop.user.username }}</h6>
+                                <h6 class="mb-0 fw-bold shop-name">
+                                    {{ shop.shop_name|default:shop.user.username }}
+                                </h6>
                                 <small class="text-muted">{{ shop.description|default:"No description available" }}</small>
                             </div>
                         </div>
@@ -105,20 +146,67 @@ li.list-group-item input[type="number"] { width: 60px; }
                             <ul class="list-group list-group-flush">
                                 {% for product in shop.items.all %}
                                 <li class="list-group-item d-flex justify-content-between align-items-center py-3">
-                                    <div>
-                                        <strong>{{ product.name }}</strong>
-                                        <div class="text-muted small">₹{{ product.price }} | {{ product.quantity }} available</div>
+                                    
+                                    <!-- PRODUCT IMAGE -->
+                                    {% if product.image %}
+                                        <img src="{{ product.image.url }}" 
+                                             alt="{{ product.name }}" 
+                                             class="rounded me-3"
+                                             style="width:80px; height:80px; object-fit:cover;">
+                                    {% else %}
+                                        <img src="{% static 'default-product.png' %}"
+                                             alt="{{ product.name }}"
+                                             class="rounded me-3"
+                                             style="width:80px; height:80px; object-fit:cover;">
+                                    {% endif %}
+                                    <!-- END PRODUCT IMAGE -->
+
+                                    <div class="flex-grow-1 me-3">
+                                        <strong class="product-name d-block">{{ product.name }}</strong>
+
+                                        {# ⭐ Product description line #}
+                                        {% if product.description %}
+                                            <div class="small text-muted mb-1">
+                                                {{ product.description }}
+                                            </div>
+                                        {% endif %}
+
+                                        <div class="text-muted small">
+                                            ₹{{ product.price }} | {{ product.quantity }} available
+                                        </div>
                                     </div>
-                                    <div class="d-flex gap-2">
-                                        <input type="number" name="quantity" value="1" min="1" max="{{ product.quantity }}" class="form-control form-control-sm">
-                                        <form method="POST" action="{% url 'shops:buy_item' product.item_id %}">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-success btn-sm rounded-3 shadow-sm">Buy</button>
-                                        </form>
-                                        <form method="POST" action="{% url 'shops:add_to_cart' product.item_id %}">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-warning btn-sm rounded-3 shadow-sm">Add to Cart</button>
-                                        </form>
+
+                                    <div class="d-flex flex-column gap-2 align-items-end">
+                                        <input type="number"
+                                               value="1"
+                                               min="1"
+                                               max="{{ product.quantity }}"
+                                               class="form-control form-control-sm product-qty-input"
+                                               data-product-id="{{ product.item_id }}">
+
+                                        <div class="d-flex gap-2">
+                                            <form method="POST"
+                                                  action="{% url 'shops:buy_item' product.item_id %}"
+                                                  class="buy-form"
+                                                  data-product-id="{{ product.item_id }}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="quantity" value="1">
+                                                <button type="submit" class="btn btn-success btn-sm rounded-3 shadow-sm">
+                                                    Buy
+                                                </button>
+                                            </form>
+
+                                            <form method="POST"
+                                                  action="{% url 'shops:add_to_cart' product.item_id %}"
+                                                  class="cart-form"
+                                                  data-product-id="{{ product.item_id }}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="quantity" value="1">
+                                                <button type="submit" class="btn btn-warning btn-sm rounded-3 shadow-sm">
+                                                    Add to Cart
+                                                </button>
+                                            </form>
+                                        </div>
                                     </div>
                                 </li>
                                 {% empty %}
@@ -128,8 +216,10 @@ li.list-group-item input[type="number"] { width: 60px; }
                         </div>
 
                         <div class="card-footer bg-light rounded-bottom-4">
-                            <form class="send-request-form" data-shop-id="{{ shop.id }}">
-                                {% csrf_token %}
+                            <form class="send-request-form" 
+                           data-url="{% url 'shops:send_request' shop.id %}">
+                           {% csrf_token %}
+
                                 <div class="input-group input-group-sm mb-2">
                                     <input type="text" name="item_name" class="form-control rounded-start" placeholder="Product Name" required>
                                     <input type="number" name="quantity" class="form-control" placeholder="Qty" min="1" required>
@@ -291,6 +381,7 @@ li.list-group-item input[type="number"] { width: 60px; }
                     <a href="{% url 'shops:close_account' %}" class="btn btn-danger btn-sm"><i class="fa fa-trash"></i> Close Account</a>
                 </div>
             </div>
+
         </div>
 
     </main>
@@ -298,84 +389,77 @@ li.list-group-item input[type="number"] { width: 60px; }
 
 <script>
 // Sidebar navigation
-let newRequests = []; // store new requests in session
+let newRequests = [];
 
 function showSection(section) {
-    ['shops','requests','orders','profile'].forEach(s => document.getElementById(s+'Section').style.display = 'none');
-    document.getElementById(section+'Section').style.display = 'block';
-    document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active-link'));
-    document.querySelector(`[onclick="showSection('${section}')"]`).classList.add('active-link');
+    ['shops','requests','orders','profile'].forEach(s =>
+        document.getElementById(s + 'Section').style.display = 'none'
+    );
+    document.getElementById(section + 'Section').style.display = 'block';
 
-    // Append new requests immediately when user clicks My Requests
-    if(section === 'requests' && newRequests.length > 0) {
-        const table = document.getElementById('requestsTable').querySelector('tbody');
-        newRequests.forEach(data => {
-            table.insertAdjacentHTML('beforeend',
-                `<tr>
-                    <td>${data.id}</td>
-                    <td>${data.shop}</td>
-                    <td>${data.item_name}</td>
-                    <td>${data.quantity}</td>
-                    <td>${data.status}</td>
-                    <td>${data.created_at}</td>
-                </tr>`
-            );
-        });
-        newRequests = []; // clear after showing
-    }
+    document.querySelectorAll('.nav-link').forEach(link =>
+        link.classList.remove('active-link')
+    );
+    document.querySelector(`[onclick="showSection('${section}')"]`).classList.add('active-link');
 }
 
-// Profile edit
-function editField(field){ document.getElementById(field+'Edit').style.display='flex'; }
-function cancelEdit(field){ document.getElementById(field+'Edit').style.display='none'; }
-function capitalize(str){ return str.charAt(0).toUpperCase()+str.slice(1); }
-function saveField(field){
-    const value = document.getElementById(field+'Input').value;
-    fetch("{% url 'shops:update_profile' %}",{
-        method:"POST",
-        headers:{"X-CSRFToken":"{{ csrf_token }}","Content-Type":"application/x-www-form-urlencoded"},
-        body:`field=${field}&value=${encodeURIComponent(value)}`
+// Profile edit logic
+function editField(field) {
+    document.getElementById(field + 'Edit').style.display = 'flex';
+}
+function cancelEdit(field) {
+    document.getElementById(field + 'Edit').style.display = 'none';
+}
+function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// Save field AJAX
+function saveField(field) {
+    const inputEl = document.getElementById(field + 'Input');
+    if (!inputEl) return;
+    const value = inputEl.value;
+
+    fetch("{% url 'shops:update_profile' %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": "{{ csrf_token }}", "Content-Type": "application/x-www-form-urlencoded" },
+        body: `field=${encodeURIComponent(field)}&value=${encodeURIComponent(value)}`
     })
-    .then(res=>res.json())
-    .then(data=>{
-        if(data.success && field!=='password') document.getElementById('display'+capitalize(field)).innerText=data.value;
-        if(!data.success) alert('Error: '+data.error);
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && field !== 'password') {
+            document.getElementById('display' + capitalize(field)).innerText = data.value;
+        }
         cancelEdit(field);
     })
-    .catch(()=>alert('Error updating '+field));
+    .catch(() => alert('Error updating ' + field));
 }
-["Username","Email","Mobile","Password","Address"].forEach(f=>document.getElementById('save'+f).onclick=()=>saveField(f.toLowerCase()));
-
-// AJAX send request
-document.querySelectorAll('.send-request-form').forEach(form=>{
-    form.addEventListener('submit', e=>{
-        e.preventDefault();
-        const shopId = form.dataset.shopId;
-        const itemName = form.querySelector('input[name="item_name"]').value;
-        const quantity = form.querySelector('input[name="quantity"]').value;
-        const csrf = form.querySelector('input[name="csrfmiddlewaretoken"]').value;
-
-        fetch(`/send/request/${shopId}/`,{
-            method:'POST',
-            headers:{"X-CSRFToken":csrf,"Content-Type":"application/x-www-form-urlencoded"},
-            body:`item_name=${encodeURIComponent(itemName)}&quantity=${encodeURIComponent(quantity)}`
-        })
-        .then(r=>r.json())
-        .then(data=>{
-            if(data.success){
-                // store request to show immediately in requests section
-                newRequests.push({
-                    id: data.request.id,
-                    shop: data.request.shop,
-                    item_name: data.request.item_name,
-                    quantity: data.request.quantity,
-                    status: data.request.status,
-                    created_at: data.request.created_at
-                });
-                form.reset(); // full reset
-            } else alert('Error: '+data.error);
-        });
-    });
+["Username","Email","Mobile","Password","Address"].forEach(f => {
+    const btn = document.getElementById('save' + f);
+    if (btn) btn.onclick = () => saveField(f.toLowerCase());
 });
+
+// ----------------- Search Feature with "No Results" -----------------
+const searchInput = document.getElementById('shopProductSearch');
+
+if (searchInput) {
+    searchInput.addEventListener('input', function () {
+
+        const term = this.value.toLowerCase().trim();
+        let anyVisible = false;
+
+        document.querySelectorAll('#shopsSection .shop-card-col').forEach(col => {
+            const cardText = col.innerText.toLowerCase();
+            const isMatch = cardText.includes(term);
+
+            col.style.display = isMatch ? '' : 'none';
+            if (isMatch) anyVisible = true;
+        });
+
+        const noCard = document.getElementById("noResultsCard");
+        noCard.style.display = (!anyVisible && term !== "") ? "block" : "none";
+    });
+}
 </script>
+
 {% endblock %}

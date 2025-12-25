@@ -11,6 +11,10 @@ from reportlab.lib.pagesizes import A4
 from django.http import FileResponse
 from .models import Profile, Shop, Item, ItemRequest, Transaction, Order, Wishlist, Recommendation
 
+from django.db.models import Q
+from .models import Product
+
+
 
 # ---------------- Home & Entry Pages ----------------
 def home(request):
@@ -236,6 +240,7 @@ def shopkeeper_dashboard(request):
         description = request.POST.get("description", "")
 
         try:
+            image = request.FILES.get("image")
             if name and quantity and price:
                 Item.objects.create(
                     shop=shop,
@@ -243,6 +248,7 @@ def shopkeeper_dashboard(request):
                     quantity=int(quantity),
                     price=float(price),
                     description=description,
+                    image=image 
                 )
                 messages.success(request, "✅ Product added successfully!")
             else:
@@ -352,39 +358,55 @@ def delete_product(request, item_id):
     return render(request, "shops/delete_product.html", {"item": product})
 
 @login_required
-def send_request(request, shop_id, item_id=None):
+def send_request(request, shop_id):
+    """
+    User -> send product request to a shop (from user_dashboard).
+    Works for:
+    - normal form submit  (redirect + message)
+    - AJAX submit         (JSON return) 
+    """
     shop = get_object_or_404(Shop, id=shop_id)
 
     if request.method == "POST":
-        quantity = request.POST.get("quantity", 1)
-        message = request.POST.get("message", "")
-        
-        # If it's for a specific item (user clicked "Request this item")
-        if item_id:
-            item = get_object_or_404(Item, id=item_id, shop=shop)
-            ItemRequest.objects.create(
-                user=request.user,
-                shop=shop,
-                item=item,
-                item_name=item.name,  # keep for backup
-                quantity=quantity,
-                reply_message=message,
-            )
-        else:
-            # Custom request (no existing product)
-            custom_name = request.POST.get("item_name", "Custom Item")
-            ItemRequest.objects.create(
-                user=request.user,
-                shop=shop,
-                item_name=custom_name,
-                quantity=quantity,
-                reply_message=message,
-            )
+        item_name = request.POST.get("item_name", "").strip()
+        quantity = request.POST.get("quantity", "").strip()
 
+        if not item_name or not quantity:
+            # AJAX request?
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"success": False, "error": "Missing fields."})
+            messages.error(request, "⚠️ Please enter product name and quantity.")
+            return redirect("shops:user_dashboard")
+
+        # ✅ Request create hoga (same model jise dashboard use kar raha hai)
+        new_request = ItemRequest.objects.create(
+            user=request.user,
+            shop=shop,
+            item_name=item_name,
+            quantity=quantity,
+            status="Pending"
+        )
+
+        # Agar AJAX se aaya:
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "success": True,
+                "request": {
+                    "id": new_request.id,
+                    "shop": shop.shop_name or shop.user.username,
+                    "item_name": new_request.item_name,
+                    "quantity": new_request.quantity,
+                    "status": new_request.status,
+                    "created_at": new_request.created_at.strftime("%d %b %Y %H:%M"),
+                }
+            })
+
+        # Agar normal form submit:
         messages.success(request, "✅ Request sent successfully!")
-        return redirect("shops:user_requests")
+        return redirect("shops:user_dashboard")
 
-    return redirect("shops:shop_detail", shop_id=shop.id)
+    # GET pe yaha aana allowed nahi
+    return redirect("shops:user_dashboard")
 
 
 # ---------------- Wishlist & Recommendations ----------------
@@ -900,3 +922,35 @@ def handle_request_action(request, request_id):
             })
         return JsonResponse({"success": False, "error": "Invalid action"})
     return JsonResponse({"success": False, "error": "Invalid request"})
+
+
+
+def search_products(request):
+    query = request.GET.get('q', '')
+    print("SEARCH QUERY =", query)
+
+    min_price = request.GET.get('min_price')
+    max_price = request.GET.get('max_price')
+
+    print("MIN PRICE =", min_price)
+    print("MAX PRICE =", max_price)
+
+    products = Product.objects.all()
+    print("TOTAL PRODUCTS =", products.count())
+
+    if query:
+        products = products.filter(
+            Q(product_name__icontains=query) |
+            Q(shop_name__icontains=query)
+        )
+        print("AFTER QUERY FILTER =", products.count())
+
+    if min_price:
+        products = products.filter(price__gte=int(min_price))
+        print("AFTER MIN PRICE FILTER =", products.count())
+
+    if max_price:
+        products = products.filter(price__lte=int(max_price))
+        print("AFTER MAX PRICE FILTER =", products.count())
+
+    return render(request, 'search.html', {'products': products})
